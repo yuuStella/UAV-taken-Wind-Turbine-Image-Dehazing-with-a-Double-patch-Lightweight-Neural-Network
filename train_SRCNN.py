@@ -99,26 +99,26 @@ if __name__ == '__main__':
                 H = inputs.size(2)
                 W = inputs.size(3)
                 images_lv1 = Variable(inputs - 0.5).cuda()
-                # 第二尺度图像输入
+                
                 images_lv2_1 = images_lv1[:, :, 0:int(H / 2), :]
                 images_lv2_2 = images_lv1[:, :, int(H / 2):H, :]
 
                 torchvision.utils.save_image(images_lv2_1, "./hazefree_edge/" + str(103) + ".jpg")
-                # 第三图尺度图像输入
+                
                 images_lv3_1 = images_lv2_1[:, :, :, 0:int(W / 2)]
                 images_lv3_2 = images_lv2_1[:, :, :, int(W / 2):W]
                 images_lv3_3 = images_lv2_2[:, :, :, 0:int(W / 2)]
                 images_lv3_4 = images_lv2_2[:, :, :, int(W / 2):W]
-                # 由细到粗，先输入最细尺度，输入四个小块
+                
                 feature_lv3_1 = model3(images_lv3_1)
                 feature_lv3_2 = model3(images_lv3_2)
                 feature_lv3_3 = model3(images_lv3_3)
                 feature_lv3_4 = model3(images_lv3_4)
-                # 将第三尺度的进行合并
+                
                 feature_lv3_top = torch.cat((feature_lv3_1, feature_lv3_2), 3)
                 feature_lv3_bot = torch.cat((feature_lv3_3, feature_lv3_4), 3)
                 feature_lv3 = torch.cat((feature_lv3_top, feature_lv3_bot), 2)
-                # 将第二尺度的图片与第三尺度融合在一起后合并
+                
                 feature_lv2_1 = model2(images_lv2_1 + feature_lv3_top)
                 feature_lv2_2 = model2(images_lv2_2 + feature_lv3_bot)
                 feature_lv2 = torch.cat((feature_lv2_1, feature_lv2_2), 2) + feature_lv3
@@ -161,30 +161,30 @@ if __name__ == '__main__':
                 H = inputs.size(2)
                 W = inputs.size(3)
                 images_lv1 = Variable(inputs - 0.5).cuda()
-                # 第二尺度图像输入
+                
                 images_lv2_1 = images_lv1[:, :, 0:int(H / 2), :]
                 images_lv2_2 = images_lv1[:, :, int(H / 2):H, :]
 
                 torchvision.utils.save_image(images_lv2_1, "./hazefree_edge/" + str(103) + ".jpg")
-                # 第三图尺度图像输入
+                
                 images_lv3_1 = images_lv2_1[:, :, :, 0:int(W / 2)]
                 images_lv3_2 = images_lv2_1[:, :, :, int(W / 2):W]
                 images_lv3_3 = images_lv2_2[:, :, :, 0:int(W / 2)]
                 images_lv3_4 = images_lv2_2[:, :, :, int(W / 2):W]
-                # 由细到粗，先输入最细尺度，输入四个小块
+                
                 feature_lv3_1 = model3(images_lv3_1)
                 feature_lv3_2 = model3(images_lv3_2)
                 feature_lv3_3 = model3(images_lv3_3)
                 feature_lv3_4 = model3(images_lv3_4)
-                # 将第三尺度的进行合并
+                
                 feature_lv3_top = torch.cat((feature_lv3_1, feature_lv3_2), 3)
                 feature_lv3_bot = torch.cat((feature_lv3_3, feature_lv3_4), 3)
                 feature_lv3 = torch.cat((feature_lv3_top, feature_lv3_bot), 2)
-                # 将第二尺度的图片与第三尺度融合在一起后合并
+                
                 feature_lv2_1 = model2(images_lv2_1 + feature_lv3_top)
                 feature_lv2_2 = model2(images_lv2_2 + feature_lv3_bot)
                 feature_lv2 = torch.cat((feature_lv2_1, feature_lv2_2), 2) + feature_lv3
-                # feature_lv2 = torch.cat((feature_lv2_1, feature_lv2_2), 2)
+                
                 preds = model1(inputs + feature_lv2).clamp(0.0, 1.0)
 
             epoch_psnr.update(calc_psnr(preds, labels), len(inputs))
