@@ -30,26 +30,16 @@ def weights_init(m):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
 
-
-# 计算一维的高斯分布向量
 def gaussian(window_size, sigma):
     gauss = torch.Tensor([exp(-(x - window_size // 2) ** 2 / float(2 * sigma ** 2)) for x in range(window_size)])
     return gauss / gauss.sum()
 
-
-# 创建高斯核，通过两个一维高斯分布向量进行矩阵乘法得到
-# 可以设定channel参数拓展为3通道
 def create_window(window_size, channel=1):
     _1D_window = gaussian(window_size, 1.5).unsqueeze(1)
     _2D_window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
     window = _2D_window.expand(channel, 1, window_size, window_size).contiguous()
     return window
 
-
-# 计算SSIM
-# 直接使用SSIM的公式，但是在计算均值时，不是直接求像素平均值，而是采用归一化的高斯核卷积来代替。
-# 在计算方差和协方差时用到了公式Var(X)=E[X^2]-E[X]^2, cov(X,Y)=E[XY]-E[X]E[Y].
-# 正如前面提到的，上面求期望的操作采用高斯核卷积代替。
 def ssim(img1, img2, window_size=11, window=None, size_average=True, full=False, val_range=None):
     # Value range can be different from 255. Other common ranges are 1 (sigmoid) and 2 (tanh).
     if val_range is None:
@@ -146,7 +136,6 @@ def train(args):
 
     criterion = nn.SmoothL1Loss(beta=1).cuda()
 
-    # 优化器，学习率
     optimizer1 = torch.optim.Adam(ld_net1.parameters(), lr=float(args["learning_rate"]), weight_decay=0.0001)
     scheduler1 = torch.optim.lr_scheduler.StepLR(optimizer1, step_size=5, gamma=0.2)
 
@@ -160,7 +149,7 @@ def train(args):
     ld_net2.train()
 
     num_of_epochs = int(args["epochs"])
-    # 构建 SummaryWriter
+    #  SummaryWriter
     writer = SummaryWriter(comment='test_your_comment', filename_suffix="_test_your_filename_suffix")
 
     for epoch in range(num_of_epochs):
@@ -172,17 +161,15 @@ def train(args):
             hazy_image = hazy_image.cuda()
 
             H = hazy_image.size(2)
-            # W = hazy_image.size(3)
 
             images_lv1 = Variable(hazy_image - 0.5).cuda()
 
-            # 第二尺度图像输入
+
             images_lv2_1 = images_lv1[:, :, 0:int(H / 2), :]
             images_lv2_2 = images_lv1[:, :, int(H / 2):H, :]
 
             torchvision.utils.save_image(images_lv2_1, "./hazefree_edge/" + str(103) + ".jpg")
 
-            # 将第二尺度的图片与第三尺度融合在一起后合并
             feature_lv2_1 = ld_net2(images_lv2_1)
             feature_lv2_2 = ld_net2(images_lv2_2)
             torchvision.utils.save_image(feature_lv2_1, "./hazefree_edge/" + str(109) + ".jpg")
@@ -192,9 +179,6 @@ def train(args):
             dehaze_image = ld_net1(feature_lv2)
             torchvision.utils.save_image(dehaze_image, "./hazefree_edge/" + str(108) + ".jpg")
 
-            # dehaze_image = ld_net(hazy_image)
-
-            # 原图求边缘
             torchvision.utils.save_image(hazefree_image, "./hazefree_edge/" + str(100) + ".jpg")
 
             image = cv2.imread("./hazefree_edge/" + str(100) + ".jpg", 0)
@@ -206,7 +190,7 @@ def train(args):
             absY = cv2.convertScaleAbs(image_y)
 
             dst = cv2.addWeighted(absX, 0.5, absY, 0.5, 0)
-            # 去雾图求边缘
+
             torchvision.utils.save_image(dehaze_image, "./hazefree_edge/" + str(101) + ".jpg")
 
             image2 = cv2.imread("./hazefree_edge/" + str(101) + ".jpg", 0)
@@ -218,12 +202,12 @@ def train(args):
             absY2 = cv2.convertScaleAbs(image_y2)
 
             dst2 = cv2.addWeighted(absX2, 0.5, absY2, 0.5, 0)
-            # 计算边缘损失并加入损失函数中
+
             loss2 = np.square(dst - dst2)
             loss2 = loss2.sum() / 20000000000
 
 
-            # 加入SSIM损失
+
             ssim_loss = 1 - SSIM()(dehaze_image, hazefree_image)
 
             loss = 0.1 * loss2 + 0.84 * ssim_loss
@@ -244,23 +228,22 @@ def train(args):
                 torch.save(ld_net1.state_dict(), "trained_weights/" + "Epoch" + str(epoch) + "a8" + '.pth')
                 torch.save(ld_net2.state_dict(), "trained_weights/" + "Epoch" + str(epoch) + "b8" + '.pth')
 
-        # 学习率改变1
-        current_lr1 = optimizer1.state_dict()['param_groups'][0]['lr']  # 当前学习率
+        current_lr1 = optimizer1.state_dict()['param_groups'][0]['lr']
         lr_list.append(current_lr1)
         print("current_lr1:", current_lr1)
 
-        scheduler1.step()  # 调整学习率
+        scheduler1.step()
 
         adjusted_lr1 = scheduler1.get_last_lr()
         print("adjusted_lr1:", adjusted_lr1)
         print("-----")
 
         # 2
-        current_lr2 = optimizer2.state_dict()['param_groups'][0]['lr']  # 当前学习率
+        current_lr2 = optimizer2.state_dict()['param_groups'][0]['lr']  
         lr_list.append(current_lr2)
         print("current_lr2:", current_lr2)
 
-        scheduler2.step()  # 调整学习率
+        scheduler2.step()
 
         adjusted_lr2 = scheduler2.get_last_lr()
         print("adjusted_lr2:", adjusted_lr2)
@@ -273,17 +256,14 @@ def train(args):
 
             # dehaze_image = ld_net(hazy_image)
             H = hazy_image.size(2)
-            W = hazy_image.size(3)
 
             images_lv1 = Variable(hazy_image - 0.5).cuda()
 
-            # 第二尺度图像输入
             images_lv2_1 = images_lv1[:, :, 0:int(H / 2), :]
             images_lv2_2 = images_lv1[:, :, int(H / 2):H, :]
 
             torchvision.utils.save_image(images_lv2_1, "./hazefree_edge/" + str(103) + ".jpg")
 
-            # 将第二尺度的图片与第三尺度融合在一起后合并
             feature_lv2_1 = ld_net2(images_lv2_1)
             feature_lv2_2 = ld_net2(images_lv2_2)
             torchvision.utils.save_image(feature_lv2_1, "./hazefree_edge/" + str(109) + ".jpg")
